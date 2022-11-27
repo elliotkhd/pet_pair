@@ -7,6 +7,8 @@ import 'package:get/get.dart';
 import 'package:pet_pair/model.dart';
 import 'package:pet_pair/state.dart';
 
+var shuffling = false;
+
 class PetController extends GetxController {
   final state = PetState();
 
@@ -62,9 +64,8 @@ class PetController extends GetxController {
             initMap();
             return;
           }
-          checkPairExistIsolate(state.copyMap).then((value) {
-            if (!value) shuffleItems();
-          });
+          var exist = checkPairExistSync(state.copyMap);
+          if (!exist) shuffleItems();
         } else {
           unselectedItem(items.first);
           state.selectedItems.value.removeAt(0);
@@ -78,6 +79,25 @@ class PetController extends GetxController {
     final p = ReceivePort();
     await Isolate.spawn<List<dynamic>>(checkPairExist, [p.sendPort, map]);
     return await p.first as bool;
+  }
+
+  bool checkPairExistSync(List<List<Point>> map) {
+    for (int i = 1; i < 9; i++) {
+      for (int j = 1; j < 12; j++) {
+        if (map[i][j].type == PetType.none) continue;
+        for (int x = 1; x < 9; x++) {
+          for (int y = 1; y < 12; y++) {
+            if (map[x][y].type == PetType.none) continue;
+            if (match(map[i][j], map[x][y], map)) {
+              print('check exist ${map[i][j]}-${map[x][y]}');
+              return true;
+            }
+          }
+        }
+      }
+    }
+    print('check not exist');
+    return false;
   }
 
   static Future<void> checkPairExist(List<dynamic> parameters) async {
@@ -130,10 +150,19 @@ class PetController extends GetxController {
 
   //没有可以消除的对儿的时候打乱
   void shuffleItems() async {
+    if (shuffling) return;
+    shuffling = true;
     late List<List<Point>> splitItems;
+    //记录每个点打乱前的位置
+    for (int x = 1; x < 9; x++) {
+      for (int y = 1; y < 12; y++) {
+        state.map[x][y].lastX = x;
+        state.map[x][y].lastY = y;
+      }
+    }
     while (true) {
       splitItems = getShuffledCopy(state.copyMap);
-      if (await checkPairExistIsolate(splitItems)) break;
+      if (checkPairExistSync(splitItems)) break;
     }
     state.map = splitItems;
     for (int x = 1; x < 9; x++) {
@@ -148,6 +177,7 @@ class PetController extends GetxController {
         state.map[x][y].y = y;
       }
     }
+    shuffling = false;
   }
 
   void adjustCMap() {
@@ -165,13 +195,6 @@ class PetController extends GetxController {
 
   List<List<Point>> getShuffledCopy(List<List<Point>> copyMap) {
     var allItems = <Point>[];
-    //记录每个点打乱前的位置
-    for (int x = 1; x < 9; x++) {
-      for (int y = 1; y < 12; y++) {
-        copyMap[x][y].lastX = x;
-        copyMap[x][y].lastY = y;
-      }
-    }
     allItems = copyMap.sublist(1, 9).fold(
         <Point>[], (value, element) => [...value, ...element.sublist(1, 12)]);
     var filledItems = allItems

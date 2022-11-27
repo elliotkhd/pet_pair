@@ -4,11 +4,6 @@ import 'package:pet_pair/controller.dart';
 import 'package:pet_pair/model.dart';
 
 void main() {
-  var tmp1 = List.generate(3, (index) => List.generate(4, (i) => Point()));
-  var tmp2 = List.generate(12, (index) => Point());
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 4; j++) {}
-  }
   runApp(const MyApp());
 }
 
@@ -40,7 +35,7 @@ class MyHomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xff130825),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 150, 0, 0),
+        padding: const EdgeInsets.fromLTRB(0, 100, 0, 0),
         child: Stack(
           children: List.generate(
             130,
@@ -88,14 +83,17 @@ class MyHomePage extends StatelessWidget {
           ).toList(),
         ),
       ),
-      floatingActionButton: Column(
+      floatingActionButton: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           FloatingActionButton(
+            child: const Icon(Icons.restart_alt),
+            onPressed: () => controller.initMap(),
+          ),
+          const SizedBox(width: 15),
+          FloatingActionButton(
+            child: const Icon(Icons.shuffle),
             onPressed: () {
-              // for (var element in state.cMap) {
-              //   element.y.value = element.y.value + itemSize;
-              // }
               controller.shuffleItems();
             },
           ),
