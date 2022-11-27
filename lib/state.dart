@@ -19,6 +19,7 @@ class PetState {
 
   int get petCount =>
       cMap.where((element) => element.type.value != PetType.none).length;
+  var gameMode = GameMode.still;
 
   var selectedItems = RxList<Point>([]);
 }

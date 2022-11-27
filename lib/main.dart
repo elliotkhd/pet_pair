@@ -41,9 +41,10 @@ class MyHomePage extends StatelessWidget {
             130,
             (i) => Obx(
               () => AnimatedPositioned(
+                curve: Curves.decelerate,
                 top: state.cMap[i].y.value * itemSize,
                 left: state.cMap[i].x.value * itemSize - 30,
-                duration: const Duration(milliseconds: 500),
+                duration: const Duration(milliseconds: 300),
                 child: state.cMap[i].type.value == PetType.none
                     ? const SizedBox()
                     : GestureDetector(
@@ -86,6 +87,12 @@ class MyHomePage extends StatelessWidget {
       floatingActionButton: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          FloatingActionButton(
+            child: const Icon(Icons.swap_horiz),
+            onPressed: () =>
+                controller.swapPoint(state.map[1][1], state.map[1][2]),
+          ),
+          const SizedBox(width: 15),
           FloatingActionButton(
             child: const Icon(Icons.restart_alt),
             onPressed: () => controller.initMap(),

@@ -1,7 +1,6 @@
 import 'dart:isolate';
 import 'dart:math';
 
-import 'package:collection/collection.dart' as col;
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:pet_pair/model.dart';
@@ -20,6 +19,8 @@ class PetController extends GetxController {
   }
 
   void initMap() {
+    // state.gameMode = GameMode.values[Random().nextInt(GameMode.values.length)];
+    state.gameMode = GameMode.snakeTopRight;
     var items = generatePetItems();
     for (int x = 0; x < 10; x++) {
       for (int y = 0; y < 13; y++) {
@@ -30,6 +31,7 @@ class PetController extends GetxController {
           petType = items[(x - 1) * 11 + y - 1];
         }
         state.map[x][y] = Point(x, y)..type = petType;
+        state.map[x][y].saveLastPosition();
         state.cMap[13 * x + y]
           ..x.value = x
           ..y.value = y
@@ -57,8 +59,10 @@ class PetController extends GetxController {
                   (p0) => p0.x.value == items[1].x && p0.y.value == items[1].y)
               .type
               .value = PetType.none;
+
           items[0].type = PetType.none;
           items[1].type = PetType.none;
+          moveItems(items[0], items[1]);
           state.selectedItems.value.clear();
           if (state.petCount == 0) {
             initMap();
@@ -75,51 +79,144 @@ class PetController extends GetxController {
     });
   }
 
-  Future<bool> checkPairExistIsolate(List<List<Point>> map) async {
-    final p = ReceivePort();
-    await Isolate.spawn<List<dynamic>>(checkPairExist, [p.sendPort, map]);
-    return await p.first as bool;
+  void swapPoint(Point a, Point b) {
+    var lastX = a.lastX;
+    var lastY = a.lastY;
+    var type = a.type;
+    a.lastX = b.lastX;
+    a.lastY = b.lastY;
+    a.type = b.type;
+    b.lastX = lastX;
+    b.lastY = lastY;
+    b.type = type;
   }
 
-  bool checkPairExistSync(List<List<Point>> map) {
+  Point findPoint(int value, GameMode mode) {
+    switch (mode) {
+      case GameMode.snakeTopRight:
+        for (int i = 1; i < 9; i++) {
+          for (int j = 1; j < 12; j++) {
+            if (state.map[i][j].getValue(mode) == value) return state.map[i][j];
+          }
+        }
+        break;
+      default:
+        return state.map[0][0];
+    }
+    return state.map[0][0];
+  }
+
+  void moveItems(Point a, Point b) async {
     for (int i = 1; i < 9; i++) {
       for (int j = 1; j < 12; j++) {
-        if (map[i][j].type == PetType.none) continue;
-        for (int x = 1; x < 9; x++) {
-          for (int y = 1; y < 12; y++) {
-            if (map[x][y].type == PetType.none) continue;
-            if (match(map[i][j], map[x][y], map)) {
-              print('check exist ${map[i][j]}-${map[x][y]}');
-              return true;
+        state.map[i][j].saveLastPosition();
+      }
+    }
+    switch (state.gameMode) {
+      case GameMode.still:
+        break;
+      case GameMode.snakeTopRight:
+        late Point tmpA, tmpB;
+        if (a.getValue(GameMode.snakeTopRight) >
+            b.getValue(GameMode.snakeTopRight)) {
+          tmpA = a;
+          tmpB = b;
+        } else {
+          tmpA = b;
+          tmpB = a;
+        }
+        for (int i = 1; i < 12; i++) {
+          if (i % 2 == 0) {
+            for (int j = 1; j < 9; j++) {
+              var value = state.map[j][i].getValue(GameMode.snakeTopRight);
+              if (value > tmpA.getValue(GameMode.snakeTopRight)) {
+                swapPoint(state.map[j][i],
+                    findPoint(value - 1, GameMode.snakeTopRight));
+              }
+            }
+          } else {
+            for (int j = 8; j >= 1; j--) {
+              var value = state.map[j][i].getValue(GameMode.snakeTopRight);
+              if (value > tmpA.getValue(GameMode.snakeTopRight)) {
+                swapPoint(state.map[j][i],
+                    findPoint(value - 1, GameMode.snakeTopRight));
+              }
             }
           }
         }
-      }
-    }
-    print('check not exist');
-    return false;
-  }
-
-  static Future<void> checkPairExist(List<dynamic> parameters) async {
-    List<List<Point>> map = parameters[1];
-    SendPort p = parameters[0];
-    for (int i = 1; i < 9; i++) {
-      for (int j = 1; j < 12; j++) {
-        if (map[i][j].type == PetType.none) continue;
-        for (int x = 1; x < 9; x++) {
-          for (int y = 1; y < 12; y++) {
-            if (map[x][y].type == PetType.none) continue;
-            if (match(map[i][j], map[x][y], map)) {
-              print('check exist ${map[i][j]}-${map[x][y]}');
-              Isolate.exit(p, true);
+        for (int i = 1; i < 12; i++) {
+          if (i % 2 == 0) {
+            for (int j = 1; j < 9; j++) {
+              var value = state.map[j][i].getValue(GameMode.snakeTopRight);
+              if (value > tmpB.getValue(GameMode.snakeTopRight)) {
+                swapPoint(state.map[j][i],
+                    findPoint(value - 1, GameMode.snakeTopRight));
+              }
+            }
+          } else {
+            for (int j = 8; j >= 1; j--) {
+              var value = state.map[j][i].getValue(GameMode.snakeTopRight);
+              if (value > tmpB.getValue(GameMode.snakeTopRight)) {
+                swapPoint(state.map[j][i],
+                    findPoint(value - 1, GameMode.snakeTopRight));
+              }
             }
           }
         }
-      }
+        // for (int i = 1; i < 9; i++) {
+        //   for (int j = 1; j < 12; j++) {
+        //     var value = state.map[i][j].getValue(GameMode.snakeTopRight);
+        //     if (value > a.getValue(GameMode.snakeTopRight)) {
+        //       swapPoint(state.map[i][j],
+        //           findPoint(value - 1, GameMode.snakeTopRight));
+        //     }
+        //   }
+        // }
+        // for (int i = 1; i < 9; i++) {
+        //   for (int j = 1; j < 12; j++) {
+        //     var value = state.map[i][j].getValue(GameMode.snakeTopRight);
+        //     if (value > b.getValue(GameMode.snakeTopRight)) {
+        //       swapPoint(state.map[i][j],
+        //           findPoint(value - 1, GameMode.snakeTopRight));
+        //     }
+        //   }
+        // }
+        adjustCMap();
+        break;
+      case GameMode.snakeTopLeft:
+        break;
+      case GameMode.snakeBottomLeft:
+        break;
+      case GameMode.snakeBottomRight:
+        break;
+      case GameMode.queueToTop:
+        break;
+      case GameMode.queueToBottom:
+        break;
+      case GameMode.queueToLeft:
+        break;
+      case GameMode.queueToRight:
+        break;
+      case GameMode.shrinkTop:
+        break;
+      case GameMode.shrinkBottom:
+        break;
+      case GameMode.shrinkLeft:
+        break;
+      case GameMode.shrinkRight:
+        break;
+      case GameMode.shrinkTopLeft:
+        break;
+      case GameMode.shrinkTopRight:
+        break;
+      case GameMode.shrinkBottomLeft:
+        break;
+      case GameMode.shrinkBottomRight:
+        break;
     }
-    print('check not exist');
-    Isolate.exit(p, false);
   }
+
+  void isAfter() {}
 
   //宠物随机列表，保证每个宠物数量是双数
   List<PetType> generatePetItems() {
@@ -148,6 +245,25 @@ class PetController extends GetxController {
     return items;
   }
 
+  bool checkPairExistSync(List<List<Point>> map) {
+    for (int i = 1; i < 9; i++) {
+      for (int j = 1; j < 12; j++) {
+        if (map[i][j].type == PetType.none) continue;
+        for (int x = 1; x < 9; x++) {
+          for (int y = 1; y < 12; y++) {
+            if (map[x][y].type == PetType.none) continue;
+            if (match(map[i][j], map[x][y], map)) {
+              print('check exist ${map[i][j]}-${map[x][y]}');
+              return true;
+            }
+          }
+        }
+      }
+    }
+    print('check not exist');
+    return false;
+  }
+
   //没有可以消除的对儿的时候打乱
   void shuffleItems() async {
     if (shuffling) return;
@@ -156,8 +272,7 @@ class PetController extends GetxController {
     //记录每个点打乱前的位置
     for (int x = 1; x < 9; x++) {
       for (int y = 1; y < 12; y++) {
-        state.map[x][y].lastX = x;
-        state.map[x][y].lastY = y;
+        state.map[x][y].saveLastPosition();
       }
     }
     while (true) {
@@ -165,18 +280,7 @@ class PetController extends GetxController {
       if (checkPairExistSync(splitItems)) break;
     }
     state.map = splitItems;
-    for (int x = 1; x < 9; x++) {
-      for (int y = 1; y < 12; y++) {
-        var item = state.cMap.firstWhere((e) =>
-            e.x.value == state.map[x][y].lastX &&
-            e.y.value == state.map[x][y].lastY &&
-            e.type.value == state.map[x][y].type);
-        item.x.value = x;
-        item.y.value = y;
-        state.map[x][y].x = x;
-        state.map[x][y].y = y;
-      }
-    }
+    adjustCMap();
     shuffling = false;
   }
 
@@ -305,5 +409,32 @@ class PetController extends GetxController {
       }
     }
     return false;
+  }
+
+  Future<bool> checkPairExistIsolate(List<List<Point>> map) async {
+    final p = ReceivePort();
+    await Isolate.spawn<List<dynamic>>(checkPairExist, [p.sendPort, map]);
+    return await p.first as bool;
+  }
+
+  static Future<void> checkPairExist(List<dynamic> parameters) async {
+    List<List<Point>> map = parameters[1];
+    SendPort p = parameters[0];
+    for (int i = 1; i < 9; i++) {
+      for (int j = 1; j < 12; j++) {
+        if (map[i][j].type == PetType.none) continue;
+        for (int x = 1; x < 9; x++) {
+          for (int y = 1; y < 12; y++) {
+            if (map[x][y].type == PetType.none) continue;
+            if (match(map[i][j], map[x][y], map)) {
+              print('check exist ${map[i][j]}-${map[x][y]}');
+              Isolate.exit(p, true);
+            }
+          }
+        }
+      }
+    }
+    print('check not exist');
+    Isolate.exit(p, false);
   }
 }

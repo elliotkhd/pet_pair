@@ -27,9 +27,47 @@ class Point {
     ..lastX = lastX
     ..lastY = lastY;
 
+  void saveLastPosition() {
+    lastX = x;
+    lastY = y;
+  }
+
   bool equalsByPosition(Point other) {
     return other.x == x && other.y == y;
   }
+
+  int getValue(GameMode mode) {
+    switch (mode) {
+      case GameMode.snakeTopRight:
+        var inOddLine = y % 2 == 1;
+        return 8 * (y - 1) + (inOddLine ? (8 - x + 1) : x);
+      default:
+        return 0;
+    }
+  }
+
+  bool isAfter(Point other, GameMode mode) =>
+      getValue(mode) > other.getValue(mode);
+}
+
+enum GameMode {
+  still,
+  snakeTopLeft,
+  snakeTopRight,
+  snakeBottomLeft,
+  snakeBottomRight,
+  queueToTop,
+  queueToBottom,
+  queueToLeft,
+  queueToRight,
+  shrinkTop,
+  shrinkBottom,
+  shrinkLeft,
+  shrinkRight,
+  shrinkTopLeft,
+  shrinkTopRight,
+  shrinkBottomLeft,
+  shrinkBottomRight,
 }
 
 enum PetType {
