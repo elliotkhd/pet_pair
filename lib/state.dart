@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import 'logic.dart';
 import 'model.dart';
 
 class PetState {
@@ -13,6 +14,8 @@ class PetState {
     growable: false,
   );
   var cMap = List.generate(130, (index) => PetItem(), growable: false);
+
+  var timer = RxInt(gameTimeLimit);
 
   List<List<Point>> get copyMap =>
       map.map((e) => e.map((e) => e).toList()).toList();

@@ -38,9 +38,19 @@ class Point {
 
   int getValue(GameMode mode) {
     switch (mode) {
-      case GameMode.snakeTopRight:
+      case GameMode.snakeHTopRight:
         var inOddLine = y % 2 == 1;
         return 8 * (y - 1) + (inOddLine ? (8 - x + 1) : x);
+      case GameMode.snakeHTopLeft:
+        var inOddLine = y % 2 == 1;
+        return 8 * (y - 1) + (inOddLine ? x : (8 - x + 1));
+      case GameMode.snakeVBottomRight:
+        var inOddLine = x % 2 == 1;
+        return 11 * (8 - x) + (inOddLine ? y : (11 - y + 1));
+      case GameMode.snakeVBottomLeft:
+        var inOddLine = x % 2 == 1;
+        return 11 * (x - 1) + (inOddLine ?  (11 - y + 1): y);
+
       default:
         return 0;
     }
@@ -52,10 +62,10 @@ class Point {
 
 enum GameMode {
   still,
-  snakeTopLeft,
-  snakeTopRight,
-  snakeBottomLeft,
-  snakeBottomRight,
+  snakeHTopLeft,
+  snakeHTopRight,
+  snakeVBottomLeft,
+  snakeVBottomRight,
   queueToTop,
   queueToBottom,
   queueToLeft,

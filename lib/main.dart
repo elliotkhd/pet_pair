@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:pet_pair/controller.dart';
+import 'package:pet_pair/logic.dart';
 import 'package:pet_pair/model.dart';
 
 void main() {
@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -23,8 +23,8 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatelessWidget {
-  final controller = Get.put(PetController());
-  late final state = controller.state;
+  final logic = Get.put(PetLogic());
+  late final state = logic.state;
   late double itemSize;
 
   MyHomePage({super.key});
@@ -34,15 +34,14 @@ class MyHomePage extends StatelessWidget {
     itemSize = (MediaQuery.of(context).size.width + 60) / 10;
     return Scaffold(
       backgroundColor: const Color(0xff130825),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 100, 0, 0),
-        child: Stack(
-          children: List.generate(
+      body: Stack(
+        children: [
+          ...List.generate(
             130,
             (i) => Obx(
               () => AnimatedPositioned(
                 curve: Curves.decelerate,
-                top: state.cMap[i].y.value * itemSize,
+                top: state.cMap[i].y.value * itemSize + 100,
                 left: state.cMap[i].x.value * itemSize - 30,
                 duration: const Duration(milliseconds: 300),
                 child: state.cMap[i].type.value == PetType.none
@@ -82,26 +81,33 @@ class MyHomePage extends StatelessWidget {
               ),
             ),
           ).toList(),
-        ),
+          Positioned(
+            top: 20,
+            left: 20,
+            right: 20,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Obx(() => LinearProgressIndicator(
+                    value: state.timer.value / gameTimeLimit,
+                    minHeight: 20,
+                  )),
+            ),
+          )
+        ],
       ),
       floatingActionButton: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FloatingActionButton(
-            child: const Icon(Icons.swap_horiz),
-            onPressed: () =>
-                controller.swapPoint(state.map[1][1], state.map[1][2]),
-          ),
           const SizedBox(width: 15),
           FloatingActionButton(
             child: const Icon(Icons.restart_alt),
-            onPressed: () => controller.initMap(),
+            onPressed: () => logic.initMap(),
           ),
           const SizedBox(width: 15),
           FloatingActionButton(
             child: const Icon(Icons.shuffle),
             onPressed: () {
-              controller.shuffleItems();
+              logic.shuffleItems();
             },
           ),
         ],

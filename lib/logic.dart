@@ -1,15 +1,19 @@
+import 'dart:async';
 import 'dart:isolate';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:pet_pair/model.dart';
 import 'package:pet_pair/state.dart';
 
 var shuffling = false;
+const gameTimeLimit = 176;
 
-class PetController extends GetxController {
+class PetLogic extends GetxController {
   final state = PetState();
+  Timer? counter;
 
   @override
   void onInit() {
@@ -20,7 +24,36 @@ class PetController extends GetxController {
 
   void initMap() {
     // state.gameMode = GameMode.values[Random().nextInt(GameMode.values.length)];
-    state.gameMode = GameMode.snakeTopRight;
+    state.timer.value = gameTimeLimit;
+    counter?.cancel();
+    counter = Timer.periodic(const Duration(seconds: 1), (timer) {
+      state.timer.value--;
+      if (state.timer.value == 0) {
+        timer.cancel();
+        Get.dialog(AlertDialog(
+          title: const Text('游戏结束'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Get.back();
+                initMap();
+              },
+              child: const Text('重新开始'),
+            ),
+          ],
+        ));
+      }
+    });
+    var type = Random().nextInt(4);
+    state.gameMode = type == 0
+        ? GameMode.queueToRight
+        : type == 1
+            ? GameMode.queueToBottom
+            : type == 2
+                ? GameMode.queueToTop
+                : type == 3
+                    ? GameMode.queueToLeft
+                    : GameMode.still;
     var items = generatePetItems();
     for (int x = 0; x < 10; x++) {
       for (int y = 0; y < 13; y++) {
@@ -92,16 +125,10 @@ class PetController extends GetxController {
   }
 
   Point findPoint(int value, GameMode mode) {
-    switch (mode) {
-      case GameMode.snakeTopRight:
-        for (int i = 1; i < 9; i++) {
-          for (int j = 1; j < 12; j++) {
-            if (state.map[i][j].getValue(mode) == value) return state.map[i][j];
-          }
-        }
-        break;
-      default:
-        return state.map[0][0];
+    for (int i = 1; i < 9; i++) {
+      for (int j = 1; j < 12; j++) {
+        if (state.map[i][j].getValue(mode) == value) return state.map[i][j];
+      }
     }
     return state.map[0][0];
   }
@@ -115,87 +142,17 @@ class PetController extends GetxController {
     switch (state.gameMode) {
       case GameMode.still:
         break;
-      case GameMode.snakeTopRight:
-        late Point tmpA, tmpB;
-        if (a.getValue(GameMode.snakeTopRight) >
-            b.getValue(GameMode.snakeTopRight)) {
-          tmpA = a;
-          tmpB = b;
-        } else {
-          tmpA = b;
-          tmpB = a;
-        }
-        for (int i = 1; i < 12; i++) {
-          if (i % 2 == 0) {
-            for (int j = 1; j < 9; j++) {
-              var value = state.map[j][i].getValue(GameMode.snakeTopRight);
-              if (value > tmpA.getValue(GameMode.snakeTopRight)) {
-                swapPoint(state.map[j][i],
-                    findPoint(value - 1, GameMode.snakeTopRight));
-              }
-            }
-          } else {
-            for (int j = 8; j >= 1; j--) {
-              var value = state.map[j][i].getValue(GameMode.snakeTopRight);
-              if (value > tmpA.getValue(GameMode.snakeTopRight)) {
-                swapPoint(state.map[j][i],
-                    findPoint(value - 1, GameMode.snakeTopRight));
-              }
-            }
-          }
-        }
-        for (int i = 1; i < 12; i++) {
-          if (i % 2 == 0) {
-            for (int j = 1; j < 9; j++) {
-              var value = state.map[j][i].getValue(GameMode.snakeTopRight);
-              if (value > tmpB.getValue(GameMode.snakeTopRight)) {
-                swapPoint(state.map[j][i],
-                    findPoint(value - 1, GameMode.snakeTopRight));
-              }
-            }
-          } else {
-            for (int j = 8; j >= 1; j--) {
-              var value = state.map[j][i].getValue(GameMode.snakeTopRight);
-              if (value > tmpB.getValue(GameMode.snakeTopRight)) {
-                swapPoint(state.map[j][i],
-                    findPoint(value - 1, GameMode.snakeTopRight));
-              }
-            }
-          }
-        }
-        // for (int i = 1; i < 9; i++) {
-        //   for (int j = 1; j < 12; j++) {
-        //     var value = state.map[i][j].getValue(GameMode.snakeTopRight);
-        //     if (value > a.getValue(GameMode.snakeTopRight)) {
-        //       swapPoint(state.map[i][j],
-        //           findPoint(value - 1, GameMode.snakeTopRight));
-        //     }
-        //   }
-        // }
-        // for (int i = 1; i < 9; i++) {
-        //   for (int j = 1; j < 12; j++) {
-        //     var value = state.map[i][j].getValue(GameMode.snakeTopRight);
-        //     if (value > b.getValue(GameMode.snakeTopRight)) {
-        //       swapPoint(state.map[i][j],
-        //           findPoint(value - 1, GameMode.snakeTopRight));
-        //     }
-        //   }
-        // }
-        adjustCMap();
-        break;
-      case GameMode.snakeTopLeft:
-        break;
-      case GameMode.snakeBottomLeft:
-        break;
-      case GameMode.snakeBottomRight:
+      case GameMode.snakeHTopRight:
+      case GameMode.snakeHTopLeft:
+      case GameMode.snakeVBottomLeft:
+      case GameMode.snakeVBottomRight:
+        adjustAllSnakeMode(a, b, state.gameMode);
         break;
       case GameMode.queueToTop:
-        break;
       case GameMode.queueToBottom:
-        break;
       case GameMode.queueToLeft:
-        break;
       case GameMode.queueToRight:
+        adjustAllQueueMode(state.gameMode);
         break;
       case GameMode.shrinkTop:
         break;
@@ -214,6 +171,130 @@ class PetController extends GetxController {
       case GameMode.shrinkBottomRight:
         break;
     }
+  }
+
+  void adjustAllQueueMode(GameMode mode) {
+    switch (mode) {
+      case GameMode.queueToTop:
+        for (int i = 1; i < 12; i++) {
+          for (int j = 1; j <= 8; j++) {
+            swapPoint(state.map[j][i - 1], state.map[j][i]);
+          }
+        }
+        for (int j = 1; j <= 8; j++) {
+          swapPoint(state.map[j][11], state.map[j][0]);
+        }
+        break;
+      case GameMode.queueToBottom:
+        for (int i = 11; i >= 0; i--) {
+          for (int j = 1; j <= 8; j++) {
+            swapPoint(state.map[j][i + 1], state.map[j][i]);
+          }
+        }
+        for (int j = 1; j <= 8; j++) {
+          swapPoint(state.map[j][1], state.map[j][12]);
+        }
+        break;
+      case GameMode.queueToLeft:
+        for (int i = 1; i < 9; i++) {
+          for (int j = 1; j <= 11; j++) {
+            swapPoint(state.map[i - 1][j], state.map[i][j]);
+          }
+        }
+        for (int j = 1; j <= 11; j++) {
+          swapPoint(state.map[0][j], state.map[8][j]);
+        }
+        break;
+      case GameMode.queueToRight:
+        for (int i = 8; i >= 0; i--) {
+          for (int j = 1; j <= 11; j++) {
+            swapPoint(state.map[i + 1][j], state.map[i][j]);
+          }
+        }
+        for (int j = 1; j <= 11; j++) {
+          swapPoint(state.map[1][j], state.map[9][j]);
+        }
+        break;
+      default:
+        return;
+    }
+
+    adjustCMap();
+  }
+
+  void adjustAllSnakeMode(Point a, Point b, GameMode mode) {
+    int firstLoopLength, secondLoopLength, remainder;
+    switch (mode) {
+      case GameMode.snakeHTopRight:
+        firstLoopLength = 12;
+        secondLoopLength = 9;
+        remainder = 0;
+        break;
+      case GameMode.snakeHTopLeft:
+        firstLoopLength = 12;
+        secondLoopLength = 9;
+        remainder = 1;
+        break;
+      case GameMode.snakeVBottomRight:
+        firstLoopLength = 9;
+        secondLoopLength = 12;
+        remainder = 0;
+        break;
+      case GameMode.snakeVBottomLeft:
+        firstLoopLength = 9;
+        secondLoopLength = 12;
+        remainder = 0;
+        break;
+      default:
+        return;
+    }
+    late Point behind, front;
+    behind = a.getValue(mode) > b.getValue(mode) ? a : b;
+    front = a.getValue(mode) > b.getValue(mode) ? b : a;
+    void shrinkOneItem(int j, int i) {
+      var value = state.map[j][i].getValue(mode);
+      if (value > front.getValue(mode) && value < behind.getValue(mode)) {
+        swapPoint(state.map[j][i], findPoint(value - 1, mode));
+      } else if (value > front.getValue(mode) &&
+          value > behind.getValue(mode)) {
+        swapPoint(state.map[j][i], findPoint(value - 2, mode));
+      }
+    }
+
+    for (int i = 1; i < firstLoopLength; i++) {
+      if (i % 2 == remainder) {
+        for (int j = 1; j < secondLoopLength; j++) {
+          switch (mode) {
+            case GameMode.snakeHTopRight:
+            case GameMode.snakeHTopLeft:
+              shrinkOneItem(j, i);
+              break;
+            case GameMode.snakeVBottomRight:
+            case GameMode.snakeVBottomLeft:
+              shrinkOneItem(i, j);
+              break;
+            default:
+              return;
+          }
+        }
+      } else {
+        for (int j = secondLoopLength - 1; j >= 1; j--) {
+          switch (mode) {
+            case GameMode.snakeHTopRight:
+            case GameMode.snakeHTopLeft:
+              shrinkOneItem(j, i);
+              break;
+            case GameMode.snakeVBottomRight:
+            case GameMode.snakeVBottomLeft:
+              shrinkOneItem(i, j);
+              break;
+            default:
+              return;
+          }
+        }
+      }
+    }
+    adjustCMap();
   }
 
   void isAfter() {}
